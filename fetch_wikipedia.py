@@ -64,9 +64,21 @@ def get_wiki_topic_summary(topic):
     pages_id = list(pages.keys())[0]
 
     extract = pages[pages_id]['extract']
-    # print(extract)
-    return extract
+    print(pages)
+    print(extract)
+
+    paras = _refine_extract(extract)
+    # print(paras)
+    return paras
+
+def _refine_extract(extract):
+    paras = extract.split('\n') 
+    # print(paras)
+    return paras
 
 
+topic = 'Frequency illusion' 
+
+get_wiki_topic_summary(topic)
 
 

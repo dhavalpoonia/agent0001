@@ -53,7 +53,12 @@
 
 import streamlit as st
 import time 
+from datetime import datetime
+import os 
 from fetch_wikipedia import get_random_wiki_topic, get_wiki_topic_summary
+from transcription import get_transcription
+from llm_analyzer import get_analysis
+
 
 st.title('Speech Therapy')
 
@@ -62,6 +67,12 @@ st.write('A Random topic will be selected for you when you click on the "Start" 
 st.write('Once a topic of your choice is selected, you can click on the "Select Topic" button.')
 st.write('It will show you content about that topic, which you can read for up to 2 mins. Afterward, you will summarize the same topic in your own words back to the agent, helping you identify gaps in your speaking skills.')
 
+
+output_folder = "./audios/"
+
+if not os.path.exists(output_folder):
+    os.makedirs(output_folder)
+
 # -----------------------------------------
 # 1. INITIALIZE SESSION STATE
 # -----------------------------------------
@@ -69,6 +80,8 @@ if "step" not in st.session_state:
     st.session_state.step = 0
 if "wiki_topic" not in st.session_state:
     st.session_state.wiki_topic = ""
+
+
 
 # -----------------------------------------
 # 2. DEFINE CALLBACK FUNCTIONS
@@ -88,6 +101,9 @@ def move_to_reading_mode():
 
 def move_to_speaking_mode():
     st.session_state.step = 4
+
+def move_to_analysis_mode():
+    st.session_state.step = 5
 
 # -----------------------------------------
 # 3. UI RENDERING LOGIC (The State Machine)
@@ -118,11 +134,14 @@ elif st.session_state.step == 2:
         st.header(st.session_state.wiki_topic)
         
         # Only fetch the summary once the user actually reaches Step 2
-        extract = get_wiki_topic_summary(st.session_state.wiki_topic)
+        paras = get_wiki_topic_summary(st.session_state.wiki_topic)
         
         # Assuming your get_wiki_topic_summary returns a generator (since you used write_stream)
+        st.session_state.content = ""
         try:
-            st.write(extract)
+            for para in paras:
+                st.write(para)
+                st.session_state.content =  st.session_state.content + para
         except TypeError:
             print("Something went Wrong. Please refresh the page and start again.")
 
@@ -141,10 +160,49 @@ elif st.session_state.step == 2:
 
 elif st.session_state.step == 4:
     with st.container(border=1):
-        audio = st.audio_input(label= "Start Speaking about the topic in your own words for 2 min, do not press anything in between.", )
+        st.session_state.audio = st.audio_input(label= "Start Speaking about the topic in your own words for 2 min, do not press anything in between.", )
 
-        if audio:
-            st.audio(audio)
+        if st.session_state.audio:
+            
+
+            # print(type(st.session_state.audio)) 
+
+            # file_name = f"audio_file_{datetime.now().format('%Y_%m_%d_%h_%m_%s')}.wav"
+
+            # output_path = os.path.join(output_folder, file_name)
+
+            # with open(output_path, 'wb') as audio_file:
+            #     audio_file.write(audio)
+
+            
+            st.session_state.transcript = get_transcription(st.session_state.audio, st.session_state.wiki_topic)
+
+
+            st.session_state.analysis = get_analysis(st.session_state.content, st.session_state.transcript, st.session_state.wiki_topic) 
+
+            st.button(label = "Next", on_click=move_to_analysis_mode)
+            # print(st.session_state.analysis)
+
+elif st.session_state.step == 5:
+    with st.container(border=1):
+        st.header(f"Topic: {st.session_state.wiki_topic}")
+        col1, col2 = st.columns(2) 
+
+        with col1:
+            with st.container(border = True):
+                st.subheader("Original Text")
+                st.write(st.session_state.content)
+
+        with col2:
+            with st.container(border = True):
+                st.subheader("Your Transcript")
+                st.write(st.session_state.transcript)
+
+        with st.container(border = 1, vertical_alignment= "bottom"):
+            st.header("Analysis") 
+            st.write(st.session_state.analysis)
+
+
     
 
 
@@ -153,12 +211,6 @@ elif st.session_state.step == 4:
 
 
  
-
-
-
-
-
-
 
 
 
